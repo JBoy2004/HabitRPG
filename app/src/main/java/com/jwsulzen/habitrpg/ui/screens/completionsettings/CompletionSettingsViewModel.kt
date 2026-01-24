@@ -1,40 +1,33 @@
-package com.jwsulzen.habitrpg.ui.screens.addtask
+package com.jwsulzen.habitrpg.ui.screens.completionsettings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jwsulzen.habitrpg.data.model.Difficulty
 import com.jwsulzen.habitrpg.data.model.Schedule
-import com.jwsulzen.habitrpg.data.model.Task
 import com.jwsulzen.habitrpg.data.repository.GameRepository
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class AddTaskViewModel(private val repository: GameRepository) : ViewModel() {
+class CompletionSettingsViewModel(private val repository: GameRepository) : ViewModel() {
 
-    val tasks = repository.tasksCurrentList.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
-    //TODO add functions to add custom tasks and premade tasks to CurrentTaskList
     fun onAddTask(
         title : String,
-        description : String,
         skillId : String,
         difficulty : Difficulty,
-        schedule: Schedule
+        schedule: Schedule,
+        goal: Int,
+        unit: String,
+        isMeasurable: Boolean
     ) {
         viewModelScope.launch { //coroutine
             repository.createTask(
                 title,
-                description,
                 skillId,
                 difficulty,
-                schedule
+                schedule,
+                goal,
+                unit,
+                isMeasurable
             )
         }
     }
@@ -44,7 +37,7 @@ class AddTaskViewModel(private val repository: GameRepository) : ViewModel() {
             ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return AddTaskViewModel(repository) as T
+                return CompletionSettingsViewModel(repository) as T
             }
         }
     }

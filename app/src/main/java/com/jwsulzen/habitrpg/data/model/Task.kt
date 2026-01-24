@@ -7,10 +7,15 @@ import androidx.room.PrimaryKey
 data class Task(
     @PrimaryKey val id: String,
     val title: String,
-    val description: String?,
     val skillId: String,
     val difficulty: Difficulty,
     val schedule: Schedule,
-    val isActive: Boolean = false
+    val goal: Int = 1,
+    val currentProgress: Int = 0,
+    val isGoalReached: Boolean = false,
+    //MEASURABLE FIELDS
+    val isMeasurable: Boolean = false,
+    val unit: String? = null,
+
     //val notification : Notification, //TODO add optional notifications per task!
 )

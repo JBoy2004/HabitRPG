@@ -2,33 +2,30 @@ package com.jwsulzen.habitrpg.data.repository
 
 //TODO: split into TaskRepository, PlayerRepository, SkillRepository?
 
-import android.os.Build
 import com.jwsulzen.habitrpg.data.local.TaskDao
 import com.jwsulzen.habitrpg.data.model.*
 import com.jwsulzen.habitrpg.data.seed.DefaultSkills
-import com.jwsulzen.habitrpg.data.seed.DefaultTasks
+import com.jwsulzen.habitrpg.data.seed.TaskTemplates
 import com.jwsulzen.habitrpg.data.model.SystemMetadata
 import com.jwsulzen.habitrpg.domain.RpgEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.util.UUID
-import kotlin.Boolean
 
 class GameRepository(private val taskDao: TaskDao) {
     //------------------- DATA STREAMS -------------------
     //STATIC: Suggested blueprints
-    private val _tasksSuggestedList = MutableStateFlow(DefaultTasks.tasks)
+    private val _tasksSuggestedList = MutableStateFlow(TaskTemplates.templates)
     val tasksSuggestedList = _tasksSuggestedList.asStateFlow()
     //STATIC: Skill definitions
     private val _skills = MutableStateFlow(DefaultSkills.skills)
     val skills = _skills.asStateFlow()
 
-    //DYNAMIC: "Active Quest Log" from DB
-    val tasksCurrentList: Flow<List<Task>> = taskDao.getActiveTasks()
+    //DYNAMIC: Pull all tasks
+    val tasksCurrentList: Flow<List<Task>> = taskDao.getAllTasks()
     //DYNAMIC: Player Progress mapped from DB
     val playerState: Flow<PlayerState> = taskDao.getSkillProgress().map { list ->
         //convert list from database into map
@@ -59,37 +56,48 @@ class GameRepository(private val taskDao: TaskDao) {
 
     suspend fun completeTask(task: Task) {
         //1. Add to history
-        val record = CompletionRecord(taskId = task.id)
-        _completionHistory.update {it + record}
+        val record = CompletionRecord(
+            taskId = task.id,
+            date = LocalDate.now(),
+            xpGained = task.difficulty.baseXp
+        )
+        taskDao.insertCompletionRecord(record)
 
-        //2. Update Skill Progress
-        val progressList = taskDao.getSkillProgressAsList()
-        val currentProgress = progressList.find { it.skillId == task.skillId }
-            ?: SkillProgress(task.skillId, 0, 1) //if it doesn't exist, start at lvl 1, 0 xp
+        //2. Increment progress and update goal status
+        val newProgress = task.currentProgress + 1
+        val reachedGoal = newProgress >= task.goal
 
-        val newXp = currentProgress.xp + task.difficulty.baseXp
+        val updatedTask = task.copy(
+            currentProgress = newProgress,
+            isGoalReached = reachedGoal
+        )
+        taskDao.insertTask(updatedTask)
+
+        //3. Update player stats (XP/Level)
+        val currentSkillProgress = taskDao.getSkillProgressAsList()
+            .find { it.skillId == task.skillId }
+            ?: SkillProgress(task.skillId, 0, 1) //failsafe: if DNE, create new skill
+
+        val newXp = currentSkillProgress.xp + task.difficulty.baseXp
         val newLevel = RpgEngine.getLevelFromTotalXp(newXp)
 
-        val updatedProgress = currentProgress.copy(
-            xp = newXp,
-            level = newLevel
-        )
-
-        taskDao.updateSkillProgress(updatedProgress)
-
-        //3. Set current task to inactive
-        taskDao.updateTaskActiveStatus(task.id, false)
+        val updatedSkill = currentSkillProgress.copy(xp = newXp, level = newLevel)
+        //Save to DB and update state
+        taskDao.updateSkillProgress(updatedSkill)
     }
 
-    suspend fun createTask(title: String, description: String, skillId: String, difficulty: Difficulty,schedule: Schedule) {
+    suspend fun createTask(title: String, skillId: String, difficulty: Difficulty,schedule: Schedule, goal: Int, unit: String, isMeasurable: Boolean) {
         val newTask = Task(
             id = UUID.randomUUID().toString(),
             title = title,
-            description = description,
             skillId = skillId,
             difficulty = difficulty,
             schedule = schedule,
-            isActive = true
+            goal = goal,
+            currentProgress = 0,
+            isGoalReached = false,
+            unit = unit,
+            isMeasurable = isMeasurable
         )
         taskDao.insertTask(newTask)
     }
@@ -102,25 +110,41 @@ class GameRepository(private val taskDao: TaskDao) {
 
     suspend fun refreshDailyTasks() {
         val today = LocalDate.now()
-
-        //1. Check DB for the last refresh date
         val metadata = taskDao.getMetadata()
-        val lastRefreshDate = metadata?.lastRefreshDate
+        val lastRefreshDate = metadata?.lastRefreshDate ?: LocalDate.MIN
 
-        //2. If already refreshed today, stop
+        //If already refreshed today, stop
         if (lastRefreshDate == today) return
 
-        //3. Perform Daily Reset logic
-        taskDao.deactivateAllTasks()
-
+        //Get all tasks to check their individual schedules
         val allTasks = taskDao.getAllTasksAsList()
+
         allTasks.forEach { task ->
-            if (task.schedule.isDue(today)) {
-                taskDao.updateTaskActiveStatus(task.id, true)
+            val shouldReset = when (val x = task.schedule) {
+                is Schedule.Daily -> true //Always reset daily tasks
+                is Schedule.Weekly -> {
+                    //Reset if today is a new week
+                    //TODO allow user to set start of week to Sunday or Monday
+                    val lastWeek = lastRefreshDate.with(java.time.DayOfWeek.MONDAY)
+                    val currentWeek = today.with(java.time.DayOfWeek.MONDAY)
+                    currentWeek.isAfter(lastWeek)
+                }
+                is Schedule.Monthly -> {
+                    //Reset if today is a new month
+                    today.monthValue != lastRefreshDate.monthValue || today.year != lastRefreshDate.year
+                }
+                is Schedule.Interval -> {
+                    //Currently handling like "session" reset TODO Make robust interval logic or scrap it
+                    task.isGoalReached
+                }
+            }
+
+            if (shouldReset) {
+                taskDao.insertTask(task.copy(currentProgress = 0, isGoalReached = false))
             }
         }
 
-        //4. Update DB with today's date for refreshing
+        //4. Update DB with today's date
         taskDao.updateMetadata(SystemMetadata(lastRefreshDate = today))
     }
 }

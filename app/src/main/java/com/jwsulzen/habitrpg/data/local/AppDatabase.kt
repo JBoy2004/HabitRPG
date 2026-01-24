@@ -3,14 +3,15 @@ package com.jwsulzen.habitrpg.data.local
 import android.content.Context
 import androidx.room.*
 import com.google.gson.Gson
+import com.jwsulzen.habitrpg.data.model.CompletionRecord
 import com.jwsulzen.habitrpg.data.model.Difficulty
 import com.jwsulzen.habitrpg.data.model.SkillProgress
 import com.jwsulzen.habitrpg.data.model.SystemMetadata
 import com.jwsulzen.habitrpg.data.model.Task
 import java.time.LocalDate
 
-@Database(entities = [Task::class, SkillProgress::class, SystemMetadata::class],
-    version = 4, //must increment version when modifying classes stored in db!
+@Database(entities = [Task::class, SkillProgress::class, SystemMetadata::class, CompletionRecord::class],
+    version = 7, //Increment when adding/modifying classes in DB
     exportSchema = false)
 @TypeConverters(AppConverters::class, ScheduleConverters::class)
 abstract class AppDatabase : RoomDatabase() {

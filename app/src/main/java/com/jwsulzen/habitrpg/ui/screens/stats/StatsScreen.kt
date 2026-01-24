@@ -15,20 +15,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.modifier.modifierLocalOf
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.jwsulzen.habitrpg.data.model.SkillProgress
 import com.jwsulzen.habitrpg.data.repository.GameRepository
 import com.jwsulzen.habitrpg.data.seed.DefaultSkills
 import com.jwsulzen.habitrpg.domain.RpgEngine
-import com.jwsulzen.habitrpg.ui.navigation.Screen
-import com.jwsulzen.habitrpg.ui.screens.addtask.AddTaskViewModel
-import com.jwsulzen.habitrpg.ui.screens.tasklist.TaskListViewModel
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 

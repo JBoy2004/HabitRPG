@@ -1,7 +1,6 @@
 package com.jwsulzen.habitrpg.ui.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,8 +22,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.jwsulzen.habitrpg.data.repository.GameRepository
-import com.jwsulzen.habitrpg.ui.screens.addtask.AddTaskScreen
-import com.jwsulzen.habitrpg.ui.screens.tasklist.TaskListScreen
+import com.jwsulzen.habitrpg.ui.screens.completionsettings.CompletionSettingsScreen
+import com.jwsulzen.habitrpg.ui.screens.measurablesettings.MeasurableSettingsScreen
+import com.jwsulzen.habitrpg.ui.screens.selectskill.SelectSkillScreen
+import com.jwsulzen.habitrpg.ui.screens.dashboard.TaskListScreen
 import com.jwsulzen.habitrpg.ui.screens.stats.StatsScreen
 
 
@@ -36,10 +37,12 @@ fun Navigation(repository: GameRepository) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    //TODO add swiping animations for each element
+    val isAddingTask = currentRoute?.startsWith(Screen.CompletionSettingsScreen.route) == true || currentRoute == Screen.SelectSkillScreen.route
+
+    //TODO add swipe gesture to navigate between TaskListView and Stats screens somehow
     Scaffold(
         bottomBar = {
-            if (currentRoute != Screen.AddTaskScreen.route) { //hide bar for add task screen
+            if (!isAddingTask) { //hide bar for add task screen
                 NavigationBar {
                     // Home Button
                     NavigationBarItem(
@@ -59,7 +62,7 @@ fun Navigation(repository: GameRepository) {
                     NavigationBarItem(
                         selected = false, //override default pill appearance
                         onClick = {
-                            navController.navigate(Screen.AddTaskScreen.route)
+                            navController.navigate(Screen.SelectSkillScreen.route)
                         },
                         icon = {
                             //surface/card to make diamond shape
@@ -111,6 +114,46 @@ fun Navigation(repository: GameRepository) {
                     ) {
                     TaskListScreen(navController = navController, repository = repository) //pass repository to the screen for viewmodel
                 }
+
+                //SELECT SKILL SCREEN
+                composable(
+                    route = Screen.SelectSkillScreen.route,
+                    enterTransition = { slideIntoContainer(towards = AnimatedContentTransitionScope.SlideDirection.Up) },
+                    exitTransition = { slideOutOfContainer(towards = AnimatedContentTransitionScope.SlideDirection.Down) }
+                ) {
+                    SelectSkillScreen(navController = navController, repository = repository)
+                }
+
+                //COMPLETION SETTINGS SCREEN
+                composable(
+                    route = Screen.CompletionSettingsScreen.route + "/{skillId}",
+                    enterTransition = { slideIntoContainer(towards = AnimatedContentTransitionScope.SlideDirection.Up) },
+                    exitTransition = { slideOutOfContainer(towards = AnimatedContentTransitionScope.SlideDirection.Down) }
+                ) { backStackEntry ->
+                    //Extract ID from the nav args
+                    val skillId = backStackEntry.arguments?.getString("skillId") ?: ""
+                    CompletionSettingsScreen(
+                        navController = navController,
+                        repository = repository,
+                        skillId = skillId
+                    )
+                }
+
+                //MEASURABLE SETTINGS SCREEN
+                composable(
+                    route = Screen.MeasurableSettingsScreen.route + "/{skillId}",
+                    enterTransition = { slideIntoContainer(towards = AnimatedContentTransitionScope.SlideDirection.Up) },
+                    exitTransition = { slideOutOfContainer(towards = AnimatedContentTransitionScope.SlideDirection.Down) }
+                ) { backStackEntry ->
+                    //Extract ID from the nav args
+                    val skillId = backStackEntry.arguments?.getString("skillId") ?: ""
+                    MeasurableSettingsScreen(
+                        navController = navController,
+                        repository = repository,
+                        skillId = skillId
+                    )
+                }
+
                 //STATS SCREEN
                 composable(
                     route = Screen.StatsScreen.route,
@@ -119,24 +162,7 @@ fun Navigation(repository: GameRepository) {
                 ) {
                     StatsScreen(navController = navController, repository = repository)
                 }
-                //ADD TASK SCREEN (slide up/down)
-                composable(
-                    route = Screen.AddTaskScreen.route,
-                    enterTransition = {
-                        slideIntoContainer(
-                            towards = AnimatedContentTransitionScope.SlideDirection.Up//,
-                             //animationSpec = tween(500) //500ms delay, try adjusting?
-                        )
-                    },
-                    exitTransition = { //is this needed? other transition for create task?
-                        slideOutOfContainer(
-                            towards = AnimatedContentTransitionScope.SlideDirection.Down,
-                            //animationSpec = tween(500) //500ms delay, try adjusting?
-                        )
-                    }
-                    ) {
-                    AddTaskScreen(navController = navController, repository = repository)
-                }
+
             }
         }
     }

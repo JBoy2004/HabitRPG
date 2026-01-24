@@ -1,4 +1,4 @@
-package com.jwsulzen.habitrpg.ui.screens.tasklist
+package com.jwsulzen.habitrpg.ui.screens.dashboard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -7,16 +7,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CutCornerShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,18 +25,17 @@ import com.jwsulzen.habitrpg.data.model.Task
 import com.jwsulzen.habitrpg.data.repository.GameRepository
 import com.jwsulzen.habitrpg.data.seed.DefaultSkills
 import com.jwsulzen.habitrpg.domain.RpgEngine
-import com.jwsulzen.habitrpg.ui.navigation.Screen
 
 @Composable
 fun TaskListScreen(
     navController: NavController,
     repository: GameRepository
 ) {
-    val viewModel: TaskListViewModel = viewModel(
-        factory = TaskListViewModel.provideFactory(repository)
+    val viewModel: DashboardViewModel = viewModel(
+        factory = DashboardViewModel.provideFactory(repository)
     )
 
-    val tasks by viewModel.tasks.collectAsState()
+    val allTasks by viewModel.allTasks.collectAsState()
     val currentLevel by viewModel.level.collectAsState(1)
     val currentTotalXp by viewModel.totalXp.collectAsState(0)
 
@@ -132,11 +130,10 @@ fun TaskListScreen(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(tasks) { task ->
-                TaskItem(
-                    task = task,
-                    onComplete = { viewModel.onTaskCompleted(task) } //lambda function to simplify TaskItem
-                )
+            items(allTasks) { task ->
+                //TODO make item look slightly faded or show checkmark
+                //TODO Add flavor text like "Create a task to get started"
+                TaskItem(task, onComplete = { viewModel.onTaskCompleted(task) })
             }
         }
     }
@@ -148,7 +145,15 @@ fun TaskItem(task: Task, onComplete: () -> Unit) {
     val skillEmoji = DefaultSkills.skills.find { it.id == task.skillId }?.emoji ?: "❓"
 
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth(),
+        colors = CardDefaults.cardColors( //Set color to green if task is met
+            containerColor = if (task.isGoalReached) {
+                Color.Green
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        )
     ) {
         Row(
             modifier = Modifier
@@ -185,14 +190,24 @@ fun TaskItem(task: Task, onComplete: () -> Unit) {
                     )
                 }
             }
-
-            FilledIconButton (
-                onClick = onComplete
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Done,
-                    contentDescription = null
-                )
+            if (task.isMeasurable) {
+                FilledIconButton (
+                    onClick = onComplete
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null
+                    )
+                }
+            } else {
+                FilledIconButton (
+                    onClick = onComplete
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Done,
+                        contentDescription = null
+                    )
+                }
             }
         }
     }
