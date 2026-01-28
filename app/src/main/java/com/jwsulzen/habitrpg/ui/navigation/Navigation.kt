@@ -17,15 +17,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.jwsulzen.habitrpg.data.repository.GameRepository
-import com.jwsulzen.habitrpg.ui.screens.completionsettings.CompletionSettingsScreen
-import com.jwsulzen.habitrpg.ui.screens.measurablesettings.MeasurableSettingsScreen
+import com.jwsulzen.habitrpg.ui.screens.tasksettings.TaskSettingsScreen
 import com.jwsulzen.habitrpg.ui.screens.selectskill.SelectSkillScreen
-import com.jwsulzen.habitrpg.ui.screens.dashboard.TaskListScreen
+import com.jwsulzen.habitrpg.ui.screens.dashboard.DashboardScreen
 import com.jwsulzen.habitrpg.ui.screens.stats.StatsScreen
 
 
@@ -37,7 +38,7 @@ fun Navigation(repository: GameRepository) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val isAddingTask = currentRoute?.startsWith(Screen.CompletionSettingsScreen.route) == true || currentRoute == Screen.SelectSkillScreen.route
+    val isAddingTask = currentRoute?.startsWith(Screen.TaskSettingsScreen.route) == true || currentRoute == Screen.SelectSkillScreen.route
 
     //TODO add swipe gesture to navigate between TaskListView and Stats screens somehow
     Scaffold(
@@ -112,7 +113,7 @@ fun Navigation(repository: GameRepository) {
                     enterTransition =  { slideIntoContainer(towards = AnimatedContentTransitionScope.SlideDirection.Right) },
                     exitTransition =  { slideOutOfContainer(towards = AnimatedContentTransitionScope.SlideDirection.Left) }
                     ) {
-                    TaskListScreen(navController = navController, repository = repository) //pass repository to the screen for viewmodel
+                    DashboardScreen(navController = navController, repository = repository) //pass repository to the screen for viewmodel
                 }
 
                 //SELECT SKILL SCREEN
@@ -124,34 +125,22 @@ fun Navigation(repository: GameRepository) {
                     SelectSkillScreen(navController = navController, repository = repository)
                 }
 
-                //COMPLETION SETTINGS SCREEN
+                //TASK SETTINGS SCREEN
                 composable(
-                    route = Screen.CompletionSettingsScreen.route + "/{skillId}",
+                    route = Screen.TaskSettingsScreen.route + "/{skillId}/{isMeasurable}?taskId={taskId}",
+                    arguments = listOf(
+                        navArgument("skillId") { type = NavType.StringType },
+                        navArgument("isMeasurable") { type = NavType.BoolType },
+                        navArgument("taskId") { nullable = true; defaultValue = null }
+                    ),
                     enterTransition = { slideIntoContainer(towards = AnimatedContentTransitionScope.SlideDirection.Up) },
                     exitTransition = { slideOutOfContainer(towards = AnimatedContentTransitionScope.SlideDirection.Down) }
-                ) { backStackEntry ->
-                    //Extract ID from the nav args
-                    val skillId = backStackEntry.arguments?.getString("skillId") ?: ""
-                    CompletionSettingsScreen(
-                        navController = navController,
-                        repository = repository,
-                        skillId = skillId
-                    )
-                }
+                ) { entry ->
+                    val skillId = entry.arguments?.getString("skillId") ?: ""
+                    val isMeasurable = entry.arguments?.getBoolean("isMeasurable") ?: false
+                    val taskId = entry.arguments?.getString("taskId")
 
-                //MEASURABLE SETTINGS SCREEN
-                composable(
-                    route = Screen.MeasurableSettingsScreen.route + "/{skillId}",
-                    enterTransition = { slideIntoContainer(towards = AnimatedContentTransitionScope.SlideDirection.Up) },
-                    exitTransition = { slideOutOfContainer(towards = AnimatedContentTransitionScope.SlideDirection.Down) }
-                ) { backStackEntry ->
-                    //Extract ID from the nav args
-                    val skillId = backStackEntry.arguments?.getString("skillId") ?: ""
-                    MeasurableSettingsScreen(
-                        navController = navController,
-                        repository = repository,
-                        skillId = skillId
-                    )
+                    TaskSettingsScreen(navController, repository, skillId, isMeasurable, taskId)
                 }
 
                 //STATS SCREEN

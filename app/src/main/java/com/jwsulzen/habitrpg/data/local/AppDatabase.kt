@@ -11,7 +11,7 @@ import com.jwsulzen.habitrpg.data.model.Task
 import java.time.LocalDate
 
 @Database(entities = [Task::class, SkillProgress::class, SystemMetadata::class, CompletionRecord::class],
-    version = 7, //Increment when adding/modifying classes in DB
+    version = 10, //Increment when adding/modifying classes in DB
     exportSchema = false)
 @TypeConverters(AppConverters::class, ScheduleConverters::class)
 abstract class AppDatabase : RoomDatabase() {

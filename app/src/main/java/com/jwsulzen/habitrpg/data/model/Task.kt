@@ -16,6 +16,6 @@ data class Task(
     //MEASURABLE FIELDS
     val isMeasurable: Boolean = false,
     val unit: String? = null,
-
+    val createdAt: Long = System.currentTimeMillis()
     //val notification : Notification, //TODO add optional notifications per task!
 )

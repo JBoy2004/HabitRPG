@@ -26,6 +26,9 @@ class GameRepository(private val taskDao: TaskDao) {
 
     //DYNAMIC: Pull all tasks
     val tasksCurrentList: Flow<List<Task>> = taskDao.getAllTasks()
+    val tasksDaily: Flow<List<Task>> = taskDao.getDailyTasks()
+    val tasksWeekly: Flow<List<Task>> = taskDao.getWeeklyTasks()
+    val tasksMonthly: Flow<List<Task>> = taskDao.getMonthlyTasks()
     //DYNAMIC: Player Progress mapped from DB
     val playerState: Flow<PlayerState> = taskDao.getSkillProgress().map { list ->
         //convert list from database into map
@@ -54,38 +57,6 @@ class GameRepository(private val taskDao: TaskDao) {
 
     // ---------------------- ACTIONS ----------------------
 
-    suspend fun completeTask(task: Task) {
-        //1. Add to history
-        val record = CompletionRecord(
-            taskId = task.id,
-            date = LocalDate.now(),
-            xpGained = task.difficulty.baseXp
-        )
-        taskDao.insertCompletionRecord(record)
-
-        //2. Increment progress and update goal status
-        val newProgress = task.currentProgress + 1
-        val reachedGoal = newProgress >= task.goal
-
-        val updatedTask = task.copy(
-            currentProgress = newProgress,
-            isGoalReached = reachedGoal
-        )
-        taskDao.insertTask(updatedTask)
-
-        //3. Update player stats (XP/Level)
-        val currentSkillProgress = taskDao.getSkillProgressAsList()
-            .find { it.skillId == task.skillId }
-            ?: SkillProgress(task.skillId, 0, 1) //failsafe: if DNE, create new skill
-
-        val newXp = currentSkillProgress.xp + task.difficulty.baseXp
-        val newLevel = RpgEngine.getLevelFromTotalXp(newXp)
-
-        val updatedSkill = currentSkillProgress.copy(xp = newXp, level = newLevel)
-        //Save to DB and update state
-        taskDao.updateSkillProgress(updatedSkill)
-    }
-
     suspend fun createTask(title: String, skillId: String, difficulty: Difficulty,schedule: Schedule, goal: Int, unit: String, isMeasurable: Boolean) {
         val newTask = Task(
             id = UUID.randomUUID().toString(),
@@ -100,6 +71,97 @@ class GameRepository(private val taskDao: TaskDao) {
             isMeasurable = isMeasurable
         )
         taskDao.insertTask(newTask)
+    }
+
+    private fun getPeriodStart(schedule: Schedule, today: LocalDate): LocalDate {
+        return when (schedule) {
+            is Schedule.Daily -> today
+            is Schedule.Weekly -> today.with(java.time.DayOfWeek.MONDAY) //TODO User setting for Sun/Mon
+            is Schedule.Monthly -> today.withDayOfMonth(1)
+            is Schedule.Interval -> today //TODO (low priority) add custom logic later
+        }
+    }
+
+    suspend fun logTaskProgress(task: Task, amount: Int, date: LocalDate, newGoal: Int) {
+        val today = LocalDate.now()
+
+        //Insert the history record
+        val record = CompletionRecord(
+            taskId = task.id,
+            date = date,
+            xpGained = 0,
+            progressAmount = amount
+        )
+        taskDao.insertCompletionRecord(record) //overwrite the previous data
+
+        //Update Goal in DB if it changed
+        if (newGoal != task.goal) {
+            taskDao.updateTaskGoal(task.id, newGoal)
+        }
+
+        //RECALCULATE CACHED PROGRESS
+        //Calculate progress based on current period (today/this week/this month)
+        val periodStart = getPeriodStart(task.schedule, today)
+        val totalForPeriod = taskDao.getProgressSumForRange(task.id, periodStart, today) ?: 0
+
+        //XP LOGIC
+        val reachedGoalNow = totalForPeriod >= newGoal
+        val wasGoalReachedBefore = task.isGoalReached
+
+        if (!wasGoalReachedBefore && reachedGoalNow) {
+            //Award XP
+            updateSkillXp(task.skillId, task.difficulty.baseXp)
+        } else if (wasGoalReachedBefore && !reachedGoalNow) {
+            //Remove XP
+            updateSkillXp(task.skillId, -task.difficulty.baseXp)
+        }
+
+        //Update Task Entity so the Dashboard UI updates
+        val updatedTask = task.copy(
+            goal = newGoal,
+            currentProgress = totalForPeriod,
+            isGoalReached = totalForPeriod >= newGoal
+        )
+        taskDao.insertTask(updatedTask)
+    }
+
+    private suspend fun updateSkillXp(skillId: String, xpGain: Int) {
+        val currentSkillProgress = taskDao.getSkillProgressAsList()
+            .find { it.skillId == skillId }
+            ?: SkillProgress(skillId, 0, 1)
+
+        val newXp = currentSkillProgress.xp + xpGain
+        val newLevel = RpgEngine.getLevelFromTotalXp(newXp)
+
+        taskDao.updateSkillProgress(currentSkillProgress.copy(xp = newXp, level = newLevel))
+    }
+
+    suspend fun completeTask(task: Task, amount: Int) {
+        val currentAmountToday = taskDao.getProgressForTaskOnDate(task.id, LocalDate.now()) ?: 0
+        //Prevent negative logs
+        val newAmount = maxOf(0, currentAmountToday + amount)
+        logTaskProgress(
+            task,
+            newAmount,
+            LocalDate.now(),
+            task.goal
+        )
+    }
+
+    suspend fun getProgressForTaskOnDate(taskId: String, date: LocalDate): Int {
+        return taskDao.getProgressForTaskOnDate(taskId, date) ?: 0
+    }
+
+    suspend fun getDatesWithProgress(taskId: String): List<LocalDate> {
+        return taskDao.getDatesWithProgress(taskId)
+    }
+
+    suspend fun updateTask(task: Task) {
+        taskDao.insertTask(task)
+    }
+
+    suspend fun getTaskById(id: String): Task? {
+        return taskDao.getTaskById(id)
     }
 
     suspend fun resetGameData() {

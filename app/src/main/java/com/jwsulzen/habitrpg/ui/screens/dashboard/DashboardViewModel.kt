@@ -6,9 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.jwsulzen.habitrpg.data.model.Task
 import com.jwsulzen.habitrpg.data.repository.GameRepository
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class DashboardViewModel(private val repository: GameRepository) : ViewModel() {
 
@@ -18,7 +18,21 @@ class DashboardViewModel(private val repository: GameRepository) : ViewModel() {
     val totalXp = repository.totalXp // Flow<Int>
 
 
-    val allTasks = repository.tasksCurrentList
+    val tasksDaily = repository.tasksDaily
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+    val tasksWeekly = repository.tasksWeekly
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+    val tasksMonthly = repository.tasksMonthly
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
@@ -36,9 +50,15 @@ class DashboardViewModel(private val repository: GameRepository) : ViewModel() {
     }
 
     //Called when user clicks checkbox
-    fun onTaskCompleted(task: Task) {
+    fun onQuickLog(task: Task, amount: Int) {
         viewModelScope.launch { //coroutine!
-            repository.completeTask(task)
+            repository.completeTask(task, amount)
+        }
+    }
+
+    fun onLogProgress(task: Task, amount: Int, date: LocalDate, newGoal: Int) {
+        viewModelScope.launch {
+            repository.logTaskProgress(task, amount, date, newGoal)
         }
     }
 }

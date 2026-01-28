@@ -1,4 +1,4 @@
-package com.jwsulzen.habitrpg.ui.screens.measurablesettings
+package com.jwsulzen.habitrpg.ui.screens.tasksettings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,30 +41,23 @@ import com.jwsulzen.habitrpg.data.repository.GameRepository
 import com.jwsulzen.habitrpg.data.seed.DefaultSkills
 import com.jwsulzen.habitrpg.data.seed.TaskTemplates
 import com.jwsulzen.habitrpg.ui.navigation.Screen
-import com.jwsulzen.habitrpg.ui.screens.completionsettings.CompletionSettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MeasurableSettingsScreen(
+fun TaskSettingsScreen(
     navController: NavController,
     repository: GameRepository,
-    skillId: String
+    skillId: String,
+    isMeasurable: Boolean,
+    taskId: String?
 ) {
-    val viewModel: MeasurableSettingsViewModel = viewModel(
-        factory = MeasurableSettingsViewModel.provideFactory(repository)
+    val viewModel: TaskSettingsViewModel = viewModel(
+        factory = TaskSettingsViewModel.provideFactory(repository, taskId)
     )
-    var selectedDate by remember { mutableStateOf(java.time.LocalDate.now()) }
-    var repeatType by remember { mutableStateOf("Does not repeat") }
     var showRepeatMenu by remember { mutableStateOf(false) }
-    var goal by remember { mutableStateOf("") }
-    var title by remember { mutableStateOf("") }
-    var unit by remember { mutableStateOf("") }
-
     val repeatOptions = listOf("Does not repeat", "Every day", "Every week", "Every month", "Custom")
-    var intervalValue by remember { mutableStateOf("1") }
-
     val hintTask = TaskTemplates.getTemplateForSkill(skillId, isMeasurable = true)
-    var selectedDifficulty by remember { mutableStateOf(Difficulty.MEDIUM) }
+    val isEditMode = !taskId.isNullOrBlank()
 
     Column(
         modifier = Modifier
@@ -72,7 +65,7 @@ fun MeasurableSettingsScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = "Create ${DefaultSkills.skills.find { it.id == skillId }?.name ?: "Task"}",
+            text = if (isEditMode) "Edit Quest" else "Create ${DefaultSkills.skills.find { it.id == skillId }?.name} Quest",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
@@ -88,8 +81,8 @@ fun MeasurableSettingsScreen(
             ) {
                 //region TITLE
                 OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
+                    value = viewModel.title,
+                    onValueChange = { viewModel.title = it },
                     label = { Text("Task Title") },
                     placeholder = { Text("e.g. ${hintTask?.title ?: "e.g. Read for 20 mins"}") },
                     modifier = Modifier.fillMaxWidth(),
@@ -99,8 +92,8 @@ fun MeasurableSettingsScreen(
 
                 //region GOAL
                 OutlinedTextField(
-                    value = goal,
-                    onValueChange = { if (it.all { char -> char.isDigit() }) goal = it },
+                    value = viewModel.goal,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) viewModel.goal = it },
                     label = { Text("Goal") },
                     placeholder = { Text("e.g. ${hintTask?.goal?.toString() ?: "1"}") },
                     modifier = Modifier.fillMaxWidth(),
@@ -109,14 +102,16 @@ fun MeasurableSettingsScreen(
                 //endregion
 
                 //region UNIT
-                OutlinedTextField(
-                    value = unit,
-                    onValueChange = { unit = it },
-                    label = { Text("Unit") },
-                    placeholder = { Text("e.g. ${hintTask?.unit ?: "e.g. minutes"}") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                if (isMeasurable) {
+                    OutlinedTextField(
+                        value = viewModel.unit,
+                        onValueChange = { viewModel.unit = it },
+                        label = { Text("Unit") },
+                        placeholder = { Text("e.g. ${hintTask?.unit ?: "e.g. minutes"}") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
                 //endregion
 
                 //region FREQUENCY
@@ -133,7 +128,7 @@ fun MeasurableSettingsScreen(
                     ) {
                         Icon(painterResource(id = android.R.drawable.ic_menu_my_calendar), contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text(selectedDate.toString())
+                        Text(viewModel.selectedDate.toString())
                     }
 
                     //Repeat Button
@@ -143,7 +138,7 @@ fun MeasurableSettingsScreen(
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(repeatType, maxLines = 1, fontSize = 12.sp)
+                            Text(viewModel.repeatType, maxLines = 1, fontSize = 12.sp)
                         }
 
                         //Dropdown Menu for Repeat options
@@ -155,7 +150,7 @@ fun MeasurableSettingsScreen(
                                 DropdownMenuItem(
                                     text = { Text(option) },
                                     onClick = {
-                                        repeatType = option
+                                        viewModel.repeatType = option
                                         showRepeatMenu = false
                                     }
                                 )
@@ -165,7 +160,7 @@ fun MeasurableSettingsScreen(
                 }
 
                 //region CUSTOM INTERVAL SUB-MENU
-                if (repeatType == "Custom") {
+                if (viewModel.repeatType == "Custom") {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -175,8 +170,8 @@ fun MeasurableSettingsScreen(
                     ) {
                         Text("Every ", style = MaterialTheme.typography.bodyMedium)
                         OutlinedTextField(
-                            value = intervalValue,
-                            onValueChange = { if (it.all { char -> char.isDigit() }) intervalValue = it },
+                            value = viewModel.intervalValue,
+                            onValueChange = { if (it.all { char -> char.isDigit() }) viewModel.intervalValue = it },
                             modifier = Modifier.width(80.dp),
                             singleLine = true,
                             textStyle = MaterialTheme.typography.bodySmall
@@ -192,8 +187,8 @@ fun MeasurableSettingsScreen(
                     Difficulty.entries.forEachIndexed { index, difficulty ->
                         SegmentedButton(
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = Difficulty.entries.size),
-                            onClick = { selectedDifficulty = difficulty },
-                            selected = difficulty == selectedDifficulty,
+                            onClick = { viewModel.selectedDifficulty = difficulty },
+                            selected = difficulty == viewModel.selectedDifficulty,
                             label = { Text(difficulty.name.take(3), fontSize = 10.sp) }
                         )
                     }
@@ -204,8 +199,8 @@ fun MeasurableSettingsScreen(
                 Button(
                     onClick = {
                         //VALIDATION LOGIC
-                        val finalTitle = title.ifBlank { hintTask?.title } ?: ""
-                        val finalGoal = goal.toIntOrNull() ?: hintTask?.goal ?: 1
+                        val finalTitle = viewModel.title.ifBlank { hintTask?.title } ?: ""
+                        val finalGoal = viewModel.goal.toIntOrNull() ?: hintTask?.goal ?: 1
 
                         if (finalTitle.isBlank() || finalGoal < 1) {
                             // TODO Show Toast or Snack bar error message here
@@ -213,25 +208,21 @@ fun MeasurableSettingsScreen(
                         }
 
                         //MAP SCHEDULE
-                        val taskSchedule = when (repeatType) {
+                        val taskSchedule = when (viewModel.repeatType) {
                             "Every day" -> com.jwsulzen.habitrpg.data.model.Schedule.Daily
-                            "Every week" -> com.jwsulzen.habitrpg.data.model.Schedule.Weekly(setOf(selectedDate.dayOfWeek))
-                            "Every month" -> com.jwsulzen.habitrpg.data.model.Schedule.Monthly(selectedDate.dayOfMonth)
+                            "Every week" -> com.jwsulzen.habitrpg.data.model.Schedule.Weekly(setOf(viewModel.selectedDate.dayOfWeek))
+                            "Every month" -> com.jwsulzen.habitrpg.data.model.Schedule.Monthly(viewModel.selectedDate.dayOfMonth)
                             "Custom" -> com.jwsulzen.habitrpg.data.model.Schedule.Interval(
-                                everyXDays = intervalValue.toIntOrNull() ?: 1,
-                                startDate = selectedDate
+                                everyXDays = viewModel.intervalValue.toIntOrNull() ?: 1,
+                                startDate = viewModel.selectedDate
                             )
                             else -> com.jwsulzen.habitrpg.data.model.Schedule.Daily // Fallback
                         }
 
                         //CREATE TASK
-                        viewModel.onAddTask(
-                            title = finalTitle,
+                        viewModel.onSaveTask(
                             skillId = skillId,
-                            difficulty = selectedDifficulty,
                             schedule = taskSchedule,
-                            goal = finalGoal,
-                            unit = unit,
                             isMeasurable = true
                         )
                         navController.popBackStack(Screen.TasklistScreen.route, inclusive = false)
@@ -239,7 +230,7 @@ fun MeasurableSettingsScreen(
                     modifier = Modifier.align(Alignment.End),
                     shape = RoundedCornerShape(size = 12.dp)
                 ) {
-                    Text(text = "Create Quest")
+                    Text(text = if (isEditMode) "Save Changes" else "Create Quest")
                 }
                 //endregion
             }

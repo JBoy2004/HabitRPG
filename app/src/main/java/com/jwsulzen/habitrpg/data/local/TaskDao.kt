@@ -6,6 +6,7 @@ import com.jwsulzen.habitrpg.data.model.SkillProgress
 import com.jwsulzen.habitrpg.data.model.Task
 import com.jwsulzen.habitrpg.data.model.SystemMetadata
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 @Dao
 interface TaskDao {
@@ -15,6 +16,9 @@ interface TaskDao {
 
     @Query("SELECT * FROM completion_history WHERE taskId = :taskId")
     fun getHistoryForTask(taskId: String): Flow<List<CompletionRecord>>
+
+    @Query("SELECT DISTINCT date FROM completion_history WHERE taskId = :taskId AND progressAmount > 0")
+    suspend fun getDatesWithProgress(taskId: String): List<LocalDate>
     //endregion
 
     //region METADATA (lastRefreshDate)
@@ -26,13 +30,28 @@ interface TaskDao {
     //endregion
 
     //region TASKS
-    //Get FLOW of tasks for UI
-    @Query("SELECT * FROM tasks")
+    //Get FLOW of tasks for UI (sorted by createdAt)
+    @Query("SELECT * FROM tasks ORDER BY createdAt ASC")
     fun getAllTasks(): Flow<List<Task>>
+
+    //Get FLOW of Daily tasks
+    @Query("SELECT * FROM tasks WHERE schedule LIKE '%\"type\":\"DAILY\"%' ORDER BY createdAt ASC")
+    fun getDailyTasks(): Flow<List<Task>>
+
+    //Get FLOW of Weekly tasks
+    @Query("SELECT * FROM tasks WHERE schedule LIKE '%\"type\":\"WEEKLY\"%' ORDER BY createdAt ASC")
+    fun getWeeklyTasks(): Flow<List<Task>>
+
+    //Get FLOW of Monthly tasks
+    @Query("SELECT * FROM tasks WHERE schedule LIKE '%\"type\":\"MONTHLY\"%' ORDER BY createdAt ASC")
+    fun getMonthlyTasks(): Flow<List<Task>>
 
     //Get LIST of tasks for BACKEND (Daily Refresh logic)
     @Query("SELECT * FROM tasks")
     suspend fun getAllTasksAsList(): List<Task>
+
+    @Query("SELECT * FROM tasks WHERE id = :taskId")
+    suspend fun getTaskById(taskId: String): Task
 
     //Reset logic for a new day/period
     @Query("UPDATE tasks SET currentProgress = 0, isGoalReached = 0")
@@ -49,6 +68,17 @@ interface TaskDao {
     //Delete all tasks (data clearing)
     @Query("DELETE FROM tasks")
     suspend fun clearAllTasks()
+
+    //Get the sum of progress for a specific task on a specific date
+    @Query("SELECT SUM(progressAmount) FROM completion_history WHERE taskId = :taskId AND date = :date")
+    suspend fun getProgressForTaskOnDate(taskId: String, date: LocalDate): Int?
+
+    @Query("UPDATE tasks SET goal = :newGoal WHERE id = :taskId")
+    suspend fun updateTaskGoal(taskId: String, newGoal: Int)
+
+    //Sum progress for a specific task within a specific date range
+    @Query("SELECT SUM(progressAmount) FROM completion_history WHERE taskId = :taskId AND date BETWEEN :startDate AND :endDate")
+    suspend fun getProgressSumForRange(taskId: String, startDate: LocalDate, endDate: LocalDate): Int?
     //endregion
 
     //region SKILLS

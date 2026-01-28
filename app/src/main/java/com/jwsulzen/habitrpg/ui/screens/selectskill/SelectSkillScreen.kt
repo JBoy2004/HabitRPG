@@ -13,15 +13,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.jwsulzen.habitrpg.data.model.Skill
 import com.jwsulzen.habitrpg.data.repository.GameRepository
+import com.jwsulzen.habitrpg.ui.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +53,6 @@ fun SelectSkillScreen(
     //State for BottomSheet
     var showSheet by remember { mutableStateOf(false) }
     var selectedSkill by remember { mutableStateOf<Skill?>(null) }
-    val sheetState = rememberModalBottomSheetState()
 
     Column(
         modifier = Modifier
@@ -86,48 +85,51 @@ fun SelectSkillScreen(
 
     //Modal Bottom Sheet for selection
     if (showSheet) {
-        ModalBottomSheet(
+        AlertDialog(
             onDismissRequest = { showSheet = false },
-            sheetState = sheetState,
-            shape = CutCornerShape(topStart = 16.dp, topEnd = 16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            title = {
                 Text(
                     text = "What type of quest is this?",
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
                 )
-
-                //Option 1: Completion
-                Button(
-                    onClick = {
-                        showSheet = false
-                        navController.navigate("completion_settings_screen/${selectedSkill?.id}") //TODO replace with navController.navigate("${Screen.CompletionSettingsScreen.route}/${selectedSkill?.id}") or sum
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CutCornerShape(8.dp)
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Completion (e.g. Clean my room)")
-                }
+                    //Option 1: Completion
+                    Button(
+                        onClick = {
+                            showSheet = false
+                            navController.navigate("${Screen.TaskSettingsScreen.route}/${selectedSkill?.id}/false")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CutCornerShape(8.dp)
+                    ) {
+                        Text("Completion (e.g. Clean my room)")
+                    }
 
-                //Option 2: Measurable
-                OutlinedButton( //TODO change to Button for consistency?
-                    onClick = {
-                        showSheet = false
-                        navController.navigate("measurable_settings_screen/${selectedSkill?.id}")
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CutCornerShape(8.dp)
-                ) {
-                    Text("Measurable (e.g. Read 6 pages)")
+                    //Option 2: Measurable
+                    OutlinedButton( //TODO change to Button for consistency?
+                        onClick = {
+                            showSheet = false
+                            navController.navigate("${Screen.TaskSettingsScreen.route}/${selectedSkill?.id}/true")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CutCornerShape(8.dp)
+                    ) {
+                        Text("Measurable (e.g. Read 6 pages)")
+                    }
                 }
-            }
-        }
+            },
+            shape = CutCornerShape(16.dp),
+            confirmButton = {}
+        )
     }
 }
 

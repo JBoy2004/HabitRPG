@@ -19,6 +19,12 @@ object DefaultSkills {
             emoji = "📝"
         ),
         Skill(
+            id = "art_id",
+            name = "Art",
+            progressionType = ProgressionType.Growth,
+            emoji = "🎨"
+        ),
+        Skill(
             id = "programming_id",
             name = "Programming",
             progressionType = ProgressionType.Growth,
@@ -38,7 +44,7 @@ object DefaultSkills {
         ),
         Skill(
             id = "language_learning_id",
-            name = "Language Learning",
+            name = "Language",
             progressionType = ProgressionType.Growth,
             emoji = "🌐"
         ),

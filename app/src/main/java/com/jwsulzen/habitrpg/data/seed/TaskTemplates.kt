@@ -58,6 +58,32 @@ object TaskTemplates {
             unit = ""
         ),
         //endregion
+        //region Art
+        Task(
+            id = "task_art_measurable",
+            title = "Drawing",
+            skillId = "art_id",
+            difficulty = Difficulty.MEDIUM,
+            schedule = Schedule.Daily,
+            goal = 20,
+            currentProgress = 0,
+            isGoalReached = false,
+            isMeasurable = true,
+            unit = "minutes"
+        ),
+        Task(
+            id = "task_art_completion",
+            title = "Drawing",
+            skillId = "art_id",
+            difficulty = Difficulty.MEDIUM,
+            schedule = Schedule.Daily,
+            goal = 1,
+            currentProgress = 0,
+            isGoalReached = false,
+            isMeasurable = false,
+            unit = ""
+        ),
+        //endregion
         //region Programming
         Task(
             id = "task_programming_measurable",
